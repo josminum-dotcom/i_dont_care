@@ -1,0 +1,6 @@
+bin/
+obj/
+*.user
+*.log
+test_output/
+test_output.txt
