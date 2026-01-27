@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using LogExtractorCore;
 
 namespace LogExtractorApp
 {
@@ -26,14 +25,14 @@ namespace LogExtractorApp
             }
         }
 
-        private void btnSelectLog_Click(object sender, EventArgs e)
+        private void btnSelectLogFolder_Click(object sender, EventArgs e)
         {
-            using (var ofd = new OpenFileDialog())
+            using (var fbd = new FolderBrowserDialog())
             {
-                ofd.Filter = "Log Files (*.log)|*.log|All Files (*.*)|*.*";
-                if (ofd.ShowDialog() == DialogResult.OK)
+                fbd.Description = "로그 파일들이 위치한 폴더를 선택하세요.";
+                if (fbd.ShowDialog() == DialogResult.OK)
                 {
-                    txtLogPath.Text = ofd.FileName;
+                    txtLogFolderPath.Text = fbd.SelectedPath;
                 }
             }
         }
@@ -41,7 +40,7 @@ namespace LogExtractorApp
         private async void btnStart_Click(object sender, EventArgs e)
         {
             string excelPath = txtExcelPath.Text;
-            string logPath = txtLogPath.Text;
+            string logFolderPath = txtLogFolderPath.Text;
 
             if (string.IsNullOrEmpty(excelPath) || !File.Exists(excelPath))
             {
@@ -49,32 +48,44 @@ namespace LogExtractorApp
                 return;
             }
 
-            if (string.IsNullOrEmpty(logPath) || !File.Exists(logPath))
+            if (string.IsNullOrEmpty(logFolderPath) || !Directory.Exists(logFolderPath))
             {
-                MessageBox.Show("로그 파일을 선택해주세요.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("로그 폴더를 선택해주세요.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             btnStart.Enabled = false;
-            lblStatus.Text = "엑셀 분석 중...";
+            lblStatus.Text = "분석 중...";
+            txtStatusLog.Clear();
             progressBar1.Value = 0;
 
             try
             {
-                string excelName = Path.GetFileNameWithoutExtension(excelPath);
-                string outputFolder = Path.Combine(Path.GetDirectoryName(excelPath)!, excelName);
+                // Memory-buffered reading for security compliance
+                byte[] excelBytes = await Task.Run(() => File.ReadAllBytes(excelPath));
+
+                string excelDir = Path.GetDirectoryName(excelPath)!;
+                string excelBaseName = Path.GetFileNameWithoutExtension(excelPath);
+                string outputDir = Path.Combine(excelDir, excelBaseName);
 
                 var parser = new ExcelParser();
-                var testCases = await Task.Run(() => parser.Parse(excelPath));
+                var cases = await Task.Run(() => parser.Parse(excelBytes));
 
-                if (testCases.Count == 0)
+                if (cases.Count == 0)
                 {
-                    MessageBox.Show("분석된 테스트 케이스가 없습니다. 시트 이름과 형식을 확인해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    btnStart.Enabled = true;
+                    txtStatusLog.AppendText("분석된 테스트 케이스가 없습니다. 시트 명과 형식을 확인하세요." + Environment.NewLine);
+                    MessageBox.Show("추출할 테스트 케이스가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                lblStatus.Text = $"로그 추출 중... (총 {testCases.Count}개 케이스)";
+                txtStatusLog.AppendText($"총 {cases.Count}개 케이스를 발견했습니다. 추출을 시작합니다..." + Environment.NewLine);
+
+                var logger = new Progress<string>(msg =>
+                {
+                    txtStatusLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}{Environment.NewLine}");
+                    txtStatusLog.SelectionStart = txtStatusLog.Text.Length;
+                    txtStatusLog.ScrollToCaret();
+                });
 
                 var progress = new Progress<int>(v =>
                 {
@@ -82,15 +93,16 @@ namespace LogExtractorApp
                 });
 
                 var processor = new LogProcessor();
-                await Task.Run(() => processor.Process(logPath, testCases, outputFolder, progress));
+                await Task.Run(() => processor.Process(logFolderPath, cases, outputDir, logger, progress));
 
-                lblStatus.Text = "작업 완료!";
-                MessageBox.Show($"작업이 완료되었습니다.\n저장 위치: {outputFolder}", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblStatus.Text = "완료";
+                MessageBox.Show($"모든 작업이 완료되었습니다.\n저장 경로: {outputDir}", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblStatus.Text = "오류 발생";
+                txtStatusLog.AppendText($"[에러] {ex.Message}{Environment.NewLine}");
+                MessageBox.Show($"오류 발생: {ex.Message}", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblStatus.Text = "에러 발생";
             }
             finally
             {
