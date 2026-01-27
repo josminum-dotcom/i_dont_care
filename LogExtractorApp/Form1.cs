@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using LogExtractorCore;
 
 namespace LogExtractorApp
 {
@@ -30,7 +29,7 @@ namespace LogExtractorApp
         {
             using (var fbd = new FolderBrowserDialog())
             {
-                fbd.Description = "로그 파일들이 들어있는 폴더를 선택하세요.";
+                fbd.Description = "로그 파일들이 위치한 폴더를 선택하세요.";
                 if (fbd.ShowDialog() == DialogResult.OK)
                 {
                     txtLogFolderPath.Text = fbd.SelectedPath;
@@ -56,35 +55,36 @@ namespace LogExtractorApp
             }
 
             btnStart.Enabled = false;
-            lblStatus.Text = "작업 시작...";
+            lblStatus.Text = "분석 중...";
             txtStatusLog.Clear();
             progressBar1.Value = 0;
 
             try
             {
-                // Security: Read Excel via ReadAllBytes
-                txtStatusLog.AppendText("엑셀 파일 로드 중..." + Environment.NewLine);
-                byte[] excelData = await Task.Run(() => File.ReadAllBytes(excelPath));
+                // Memory-buffered reading for security compliance
+                byte[] excelBytes = await Task.Run(() => File.ReadAllBytes(excelPath));
 
-                string excelName = Path.GetFileNameWithoutExtension(excelPath);
-                string outputFolder = Path.Combine(Path.GetDirectoryName(excelPath)!, excelName);
+                string excelDir = Path.GetDirectoryName(excelPath)!;
+                string excelBaseName = Path.GetFileNameWithoutExtension(excelPath);
+                string outputDir = Path.Combine(excelDir, excelBaseName);
 
                 var parser = new ExcelParser();
-                var testCases = await Task.Run(() => parser.Parse(excelData));
+                var cases = await Task.Run(() => parser.Parse(excelBytes));
 
-                if (testCases.Count == 0)
+                if (cases.Count == 0)
                 {
-                    txtStatusLog.AppendText("분석된 테스트 케이스가 없습니다." + Environment.NewLine);
-                    MessageBox.Show("분석된 테스트 케이스가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    btnStart.Enabled = true;
+                    txtStatusLog.AppendText("분석된 테스트 케이스가 없습니다. 시트 명과 형식을 확인하세요." + Environment.NewLine);
+                    MessageBox.Show("추출할 테스트 케이스가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                txtStatusLog.AppendText($"총 {testCases.Count}개 케이스 분석 완료. 로그 추출을 시작합니다..." + Environment.NewLine);
+                txtStatusLog.AppendText($"총 {cases.Count}개 케이스를 발견했습니다. 추출을 시작합니다..." + Environment.NewLine);
 
                 var logger = new Progress<string>(msg =>
                 {
                     txtStatusLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}{Environment.NewLine}");
+                    txtStatusLog.SelectionStart = txtStatusLog.Text.Length;
+                    txtStatusLog.ScrollToCaret();
                 });
 
                 var progress = new Progress<int>(v =>
@@ -93,17 +93,16 @@ namespace LogExtractorApp
                 });
 
                 var processor = new LogProcessor();
-                await Task.Run(() => processor.Process(logFolderPath, testCases, outputFolder, logger, progress));
+                await Task.Run(() => processor.Process(logFolderPath, cases, outputDir, logger, progress));
 
-                lblStatus.Text = "작업 완료!";
-                txtStatusLog.AppendText("모든 작업이 완료되었습니다." + Environment.NewLine);
-                MessageBox.Show($"작업이 완료되었습니다.\n저장 위치: {outputFolder}", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblStatus.Text = "완료";
+                MessageBox.Show($"모든 작업이 완료되었습니다.\n저장 경로: {outputDir}", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                txtStatusLog.AppendText($"[오류] {ex.Message}{Environment.NewLine}");
-                MessageBox.Show($"오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblStatus.Text = "오류 발생";
+                txtStatusLog.AppendText($"[에러] {ex.Message}{Environment.NewLine}");
+                MessageBox.Show($"오류 발생: {ex.Message}", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblStatus.Text = "에러 발생";
             }
             finally
             {

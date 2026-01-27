@@ -85,7 +85,7 @@ namespace LogExtractorApp
             this.lblStatus.AutoSize = true;
             this.lblStatus.Location = new System.Drawing.Point(24, 180);
             this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(110, 15);
+            this.lblStatus.Size = new System.Drawing.Size(155, 15);
             this.lblStatus.TabIndex = 6;
             this.lblStatus.Text = "파일 및 폴더를 선택하세요.";
             //
@@ -94,7 +94,7 @@ namespace LogExtractorApp
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(24, 27);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(70, 15);
+            this.label1.Size = new System.Drawing.Size(62, 15);
             this.label1.TabIndex = 7;
             this.label1.Text = "엑셀 파일:";
             //
@@ -103,7 +103,7 @@ namespace LogExtractorApp
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(24, 66);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(70, 15);
+            this.label2.Size = new System.Drawing.Size(62, 15);
             this.label2.TabIndex = 8;
             this.label2.Text = "로그 폴더:";
             //
@@ -115,14 +115,14 @@ namespace LogExtractorApp
             this.txtStatusLog.Name = "txtStatusLog";
             this.txtStatusLog.ReadOnly = true;
             this.txtStatusLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtStatusLog.Size = new System.Drawing.Size(514, 150);
+            this.txtStatusLog.Size = new System.Drawing.Size(514, 130);
             this.txtStatusLog.TabIndex = 9;
             //
             // Form1
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(564, 380);
+            this.ClientSize = new System.Drawing.Size(564, 360);
             this.Controls.Add(this.txtStatusLog);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
@@ -136,7 +136,7 @@ namespace LogExtractorApp
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.Name = "Form1";
-            this.Text = "로그 추출 자동화 도구 v2.0";
+            this.Text = "로그 추출 자동화 도구 v2.1 (Unified)";
             this.ResumeLayout(false);
             this.PerformLayout();
         }
